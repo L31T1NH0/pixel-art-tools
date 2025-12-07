@@ -1,6 +1,7 @@
 """Interface de linha de comando para ferramentas de pixel art."""
 
 import argparse
+from pathlib import Path
 from typing import Callable
 
 from PIL import Image
@@ -83,26 +84,28 @@ def executar_interativo() -> None:
 
     if opcao == "1":
         print("Pixelizando a imagem...")
-        processor.pixelizar(img, fator_int)
-        print("Imagem pixelizada salva como 'pixel_art_corrigida.png'")
+        destino = gerar_caminho_saida(arquivo_entrada, "pixelizado")
+        processor.pixelizar(img, fator_int, destino)
+        print(f"Imagem pixelizada salva como '{destino}'")
     elif opcao == "2":
         print("Reduzindo a imagem...")
-        processor.reduzir(img, fator_int)
-        print("Imagem reduzida salva como 'pixel_art_reduzida.png'")
+        destino = gerar_caminho_saida(arquivo_entrada, "reduzida")
+        processor.reduzir(img, fator_int, destino)
+        print(f"Imagem reduzida salva como '{destino}'")
     elif opcao == "3":
         print("Ampliando a imagem...")
-        processor.ampliar(img, fator_int)
-        print("Imagem ampliada salva como 'pixel_art_ampliada.png'")
+        destino = gerar_caminho_saida(arquivo_entrada, "ampliada")
+        processor.ampliar(img, fator_int, destino)
+        print(f"Imagem ampliada salva como '{destino}'")
     elif opcao == "4":
         print("Aproximando cores da imagem...")
-        processor.aproximar_cores(img)
-        print(
-            "Imagem com cores aproximadas salva como "
-            "'pixel_art_cores_aproximadas.png'"
-        )
+        destino = gerar_caminho_saida(arquivo_entrada, "cores_aproximadas")
+        processor.aproximar_cores(img, output_path=destino)
+        print(f"Imagem com cores aproximadas salva como '{destino}'")
     elif opcao == "5":
         print("Verificando cores da imagem...")
-        processor.verificar_cores(img)
+        destino = gerar_caminho_saida(arquivo_entrada, "cores", extensao=".txt")
+        processor.verificar_cores(img, destino)
 
 
 def carregar_imagem(caminho: str) -> Image.Image | None:
@@ -117,14 +120,26 @@ def carregar_imagem(caminho: str) -> Image.Image | None:
     return None
 
 
+def gerar_caminho_saida(
+    caminho_entrada: str, sufixo: str, extensao: str | None = None
+) -> str:
+    """Gera automaticamente um caminho de saída baseado no arquivo de entrada."""
+
+    entrada = Path(caminho_entrada)
+    extensao_saida = extensao if extensao is not None else entrada.suffix or ".png"
+    return str(entrada.with_name(f"{entrada.stem}_{sufixo}{extensao_saida}"))
+
+
 def processar_pixelizar(args: argparse.Namespace) -> None:
     processor = PixelArtProcessor()
     imagem = carregar_imagem(args.input)
     if imagem is None:
         return
 
-    processor.pixelizar(imagem, args.factor, args.output)
-    print(f"Imagem pixelizada salva como '{args.output}'")
+    output = args.output or gerar_caminho_saida(args.input, "pixelizado")
+
+    processor.pixelizar(imagem, args.factor, output)
+    print(f"Imagem pixelizada salva como '{output}'")
 
 
 def processar_reduzir(args: argparse.Namespace) -> None:
@@ -133,8 +148,10 @@ def processar_reduzir(args: argparse.Namespace) -> None:
     if imagem is None:
         return
 
-    processor.reduzir(imagem, args.factor, args.output)
-    print(f"Imagem reduzida salva como '{args.output}'")
+    output = args.output or gerar_caminho_saida(args.input, "reduzida")
+
+    processor.reduzir(imagem, args.factor, output)
+    print(f"Imagem reduzida salva como '{output}'")
 
 
 def processar_ampliar(args: argparse.Namespace) -> None:
@@ -143,8 +160,10 @@ def processar_ampliar(args: argparse.Namespace) -> None:
     if imagem is None:
         return
 
-    processor.ampliar(imagem, args.factor, args.output)
-    print(f"Imagem ampliada salva como '{args.output}'")
+    output = args.output or gerar_caminho_saida(args.input, "ampliada")
+
+    processor.ampliar(imagem, args.factor, output)
+    print(f"Imagem ampliada salva como '{output}'")
 
 
 def processar_aproximar(args: argparse.Namespace) -> None:
@@ -154,8 +173,10 @@ def processar_aproximar(args: argparse.Namespace) -> None:
         return
 
     tolerancia = args.factor if args.factor is not None else 5
-    processor.aproximar_cores(imagem, tolerancia=tolerancia, output_path=args.output)
-    print(f"Imagem com cores aproximadas salva como '{args.output}'")
+    output = args.output or gerar_caminho_saida(args.input, "cores_aproximadas")
+
+    processor.aproximar_cores(imagem, tolerancia=tolerancia, output_path=output)
+    print(f"Imagem com cores aproximadas salva como '{output}'")
 
 
 def processar_verificar(args: argparse.Namespace) -> None:
@@ -164,14 +185,16 @@ def processar_verificar(args: argparse.Namespace) -> None:
     if imagem is None:
         return
 
-    processor.verificar_cores(imagem, args.output)
-    if args.output:
-        print(f"Resumo de cores salvo em '{args.output}'")
+    output = args.output or gerar_caminho_saida(args.input, "cores", extensao=".txt")
+
+    processor.verificar_cores(imagem, output)
+    if output:
+        print(f"Resumo de cores salvo em '{output}'")
 
 
 def adicionar_argumentos_comuns(
     parser: argparse.ArgumentParser,
-    padrao_saida: str | None,
+    sufixo_padrao: str | None,
     fator_padrao: int | None = None,
 ) -> None:
     parser.add_argument(
@@ -179,18 +202,16 @@ def adicionar_argumentos_comuns(
         required=True,
         help="Caminho do arquivo de imagem de entrada.",
     )
-    if padrao_saida is None:
-        parser.add_argument(
-            "--output",
-            default=None,
-            help="Arquivo de saída (opcional).",
-        )
-    else:
-        parser.add_argument(
-            "--output",
-            default=padrao_saida,
-            help=f"Arquivo de saída (padrão: {padrao_saida}).",
-        )
+    ajuda_saida = (
+        "Arquivo de saída (opcional; padrão derivado do nome de entrada)."
+        if sufixo_padrao
+        else "Arquivo de saída (opcional)."
+    )
+    parser.add_argument(
+        "--output",
+        default=None,
+        help=ajuda_saida,
+    )
     parser.add_argument(
         "--factor",
         type=inteiro_positivo,
@@ -218,21 +239,21 @@ def construir_parser() -> argparse.ArgumentParser:
         "pixelizar",
         help="Corrige blocos, reduz e reamplia a imagem pixel art.",
     )
-    adicionar_argumentos_comuns(parser_pixelizar, "pixel_art_corrigida.png", 2)
+    adicionar_argumentos_comuns(parser_pixelizar, "pixelizado", 2)
     parser_pixelizar.set_defaults(handler=processar_pixelizar)
 
     parser_reduzir = subparsers.add_parser(
         "reduzir",
         help="Reduz a imagem mantendo o estilo pixelado.",
     )
-    adicionar_argumentos_comuns(parser_reduzir, "pixel_art_reduzida.png", 2)
+    adicionar_argumentos_comuns(parser_reduzir, "reduzida", 2)
     parser_reduzir.set_defaults(handler=processar_reduzir)
 
     parser_ampliar = subparsers.add_parser(
         "ampliar",
         help="Amplia a imagem em múltiplos inteiros sem suavizar os blocos.",
     )
-    adicionar_argumentos_comuns(parser_ampliar, "pixel_art_ampliada.png", 2)
+    adicionar_argumentos_comuns(parser_ampliar, "ampliada", 2)
     parser_ampliar.set_defaults(handler=processar_ampliar)
 
     parser_aproximar = subparsers.add_parser(
@@ -241,7 +262,7 @@ def construir_parser() -> argparse.ArgumentParser:
     )
     adicionar_argumentos_comuns(
         parser_aproximar,
-        "pixel_art_cores_aproximadas.png",
+        "cores_aproximadas",
     )
     parser_aproximar.set_defaults(handler=processar_aproximar)
 
@@ -249,7 +270,7 @@ def construir_parser() -> argparse.ArgumentParser:
         "verificar-cores",
         help="Exibe um resumo das cores presentes na imagem.",
     )
-    adicionar_argumentos_comuns(parser_verificar, None)
+    adicionar_argumentos_comuns(parser_verificar, "cores")
     parser_verificar.set_defaults(handler=processar_verificar)
 
     return parser
