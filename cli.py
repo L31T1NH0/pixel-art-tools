@@ -66,9 +66,9 @@ def executar_interativo() -> None:
         print("Opção inválida! Escolha 1, 2, 3, 4 ou 5.")
         return
 
-    arquivo_entrada: str = input(
-        "Digite o nome do arquivo de imagem (ex.: imagem.png): "
-    )
+    arquivo_entrada = Path(
+        input("Digite o nome do arquivo de imagem (ex.: imagem.png): ")
+    ).expanduser()
 
     try:
         img: Image.Image = Image.open(arquivo_entrada)
@@ -118,9 +118,10 @@ def executar_interativo() -> None:
         print(f"Erro durante o processamento: {exc}")
 
 
-def carregar_imagem(caminho: str) -> Image.Image | None:
+def carregar_imagem(caminho: Path) -> Image.Image | None:
     """Abre a imagem indicada, tratando erros comuns de IO."""
 
+    caminho = caminho.expanduser()
     try:
         return Image.open(caminho)
     except FileNotFoundError:
@@ -131,13 +132,13 @@ def carregar_imagem(caminho: str) -> Image.Image | None:
 
 
 def gerar_caminho_saida(
-    caminho_entrada: str, sufixo: str, extensao: str | None = None
-) -> str:
+    caminho_entrada: Path, sufixo: str, extensao: str | None = None
+) -> Path:
     """Gera automaticamente um caminho de saída baseado no arquivo de entrada."""
 
-    entrada = Path(caminho_entrada)
+    entrada = caminho_entrada.expanduser()
     extensao_saida = extensao if extensao is not None else entrada.suffix or ".png"
-    return str(entrada.with_name(f"{entrada.stem}_{sufixo}{extensao_saida}"))
+    return entrada.with_name(f"{entrada.stem}_{sufixo}{extensao_saida}")
 
 
 def processar_pixelizar(args: argparse.Namespace) -> None:
@@ -237,6 +238,7 @@ def adicionar_argumentos_comuns(
     parser.add_argument(
         "--input",
         required=True,
+        type=Path,
         help="Caminho do arquivo de imagem de entrada.",
     )
     ajuda_saida = (
@@ -247,6 +249,7 @@ def adicionar_argumentos_comuns(
     parser.add_argument(
         "--output",
         default=None,
+        type=Path,
         help=ajuda_saida,
     )
     parser.add_argument(
