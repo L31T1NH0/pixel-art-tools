@@ -5,16 +5,57 @@ from typing import Dict, List, Tuple
 import numpy as np
 from PIL import Image
 
+from errors import InvalidParameterError, ProcessingError
 from utils import cor_referencia_mais_proxima, obter_vizinhos, pixel_fora_da_tolerancia
 
 
 class PixelArtProcessor:
     """Processador de pixel art com operações de manipulação de imagem."""
 
+    @staticmethod
+    def _ensure_positive_int(nome: str, valor: int) -> None:
+        if not isinstance(valor, int) or valor <= 0:
+            raise InvalidParameterError(
+                f"O parâmetro '{nome}' precisa ser um inteiro maior que zero."
+            )
+
+    @staticmethod
+    def _ensure_non_negative_int(nome: str, valor: int) -> None:
+        if not isinstance(valor, int) or valor < 0:
+            raise InvalidParameterError(
+                f"O parâmetro '{nome}' precisa ser um inteiro maior ou igual a zero."
+            )
+
+    @staticmethod
+    def _ensure_non_negative_float(nome: str, valor: float) -> None:
+        if not isinstance(valor, (int, float)) or valor < 0:
+            raise InvalidParameterError(
+                f"O parâmetro '{nome}' precisa ser numérico e não negativo."
+            )
+
+    @staticmethod
+    def _ensure_image_has_data(img: Image.Image) -> Image.Image:
+        if img.width <= 0 or img.height <= 0:
+            raise InvalidParameterError("A imagem não possui dimensões válidas.")
+        return img
+
+    @staticmethod
+    def _save_image(image: Image.Image, output_path: str) -> None:
+        try:
+            image.save(output_path)
+        except OSError as exc:  # pragma: no cover - dependente do sistema de arquivos
+            raise ProcessingError(
+                f"Não foi possível salvar a imagem em '{output_path}': {exc}"
+            ) from exc
+
     def calcular_blocos(self, img: Image.Image) -> Tuple[int, int, int]:
         """Retorna a largura, altura e tamanho médio dos blocos de pixel art."""
 
+        img = self._ensure_image_has_data(img).convert("RGB")
         arr: np.ndarray = np.array(img)
+        if arr.size == 0:
+            raise ProcessingError("A imagem não contém dados para processamento.")
+
         bloco_largura: int = self.detectar_tamanho(arr, 1)
         bloco_altura: int = self.detectar_tamanho(arr, 0)
         bloco_tamanho: int = int(round((bloco_largura + bloco_altura) / 2))
@@ -39,6 +80,9 @@ class PixelArtProcessor:
             Tamanho médio inteiro das sequências de pixels iguais ao longo do
             eixo fornecido.
         """
+        if bw.size == 0:
+            raise ProcessingError("A imagem convertida está vazia.")
+
         tamanhos: List[int] = []
         for linha in np.swapaxes(bw, 0, axis):
             contagem = 0
@@ -53,6 +97,11 @@ class PixelArtProcessor:
                     contagem += 1
             if contagem > 0:
                 tamanhos.append(contagem)
+
+        if not tamanhos:
+            raise ProcessingError(
+                "Não foi possível detectar o tamanho dos blocos na imagem fornecida."
+            )
 
         return int(round(np.mean(tamanhos)))
 
@@ -77,9 +126,11 @@ class PixelArtProcessor:
         Returns:
             Nova imagem PIL com blocos corrigidos e efeito pixelizado.
         """
+        self._ensure_positive_int("fator_reducao", fator_reducao)
+        img = self._ensure_image_has_data(img)
+
         # === Pixelizar (Código 1) ===
         bloco_largura, bloco_altura, bloco_tamanho = self.calcular_blocos(img)
-        print(f"Tamanho médio detectado: {bloco_largura}x{bloco_altura}")
 
         nova_largura: int = int(round(img.width / bloco_largura * bloco_tamanho))
         nova_altura: int = int(round(img.height / bloco_altura * bloco_tamanho))
@@ -96,7 +147,7 @@ class PixelArtProcessor:
             Image.NEAREST,
         )
         final: Image.Image = reduzida.resize(corrigida.size, Image.NEAREST)
-        final.save(output_path)
+        self._save_image(final, output_path)
 
         return final
 
@@ -119,6 +170,9 @@ class PixelArtProcessor:
         Returns:
             Imagem PIL reduzida com reamostragem por vizinho mais próximo.
         """
+        self._ensure_positive_int("fator_reducao", fator_reducao)
+        img = self._ensure_image_has_data(img)
+
         # === Reduzir (Código 2) ===
         nova_largura: int = img.width
         nova_altura: int = img.height
@@ -132,7 +186,7 @@ class PixelArtProcessor:
             (largura_reduzida, altura_reduzida),
             Image.NEAREST,
         )
-        reduzida.save(output_path)
+        self._save_image(reduzida, output_path)
 
         return reduzida
 
@@ -155,6 +209,9 @@ class PixelArtProcessor:
         Returns:
             Imagem PIL ampliada mantendo o estilo pixelado.
         """
+        self._ensure_positive_int("fator_aumento", fator_aumento)
+        img = self._ensure_image_has_data(img)
+
         # === Ampliar (Código 3) ===
         nova_largura: int = img.width
         nova_altura: int = img.height
@@ -168,7 +225,7 @@ class PixelArtProcessor:
             (largura_ampliada, altura_ampliada),
             Image.NEAREST,
         )
-        ampliada.save(output_path)
+        self._save_image(ampliada, output_path)
 
         return ampliada
 
@@ -199,6 +256,14 @@ class PixelArtProcessor:
         Returns:
             Imagem PIL com cores aproximadas às referências fornecidas.
         """
+        self._ensure_non_negative_int("tolerancia", tolerancia)
+        self._ensure_non_negative_float("limiar_discrepancia", limiar_discrepancia)
+        if cores_referencia is not None and len(cores_referencia) == 0:
+            raise InvalidParameterError(
+                "A lista de cores de referência não pode estar vazia."
+            )
+
+        img = self._ensure_image_has_data(img).convert("RGB")
         cores_referencia = (
             cores_referencia
             if cores_referencia is not None
@@ -249,10 +314,12 @@ class PixelArtProcessor:
 
         # Converter de volta para imagem e salvar
         img_final: Image.Image = Image.fromarray(arr_novo)
-        img_final.save(output_path)
+        self._save_image(img_final, output_path)
         return img_final
 
-    def verificar_cores(self, img: Image.Image, output_path: str | None = None) -> None:
+    def verificar_cores(
+        self, img: Image.Image, output_path: str | None = None
+    ) -> List[str]:
         """Conta e exibe a ocorrência de cada cor em uma imagem.
 
         Converte a imagem para RGB, contabiliza cada pixel transformando-o em
@@ -262,12 +329,20 @@ class PixelArtProcessor:
             img: Imagem PIL a ser analisada.
 
         Returns:
-            None: Apenas exibe as informações no console.
+            List[str]: Resumo textual com a contagem de cores.
         """
+        if output_path is not None and not isinstance(output_path, str):
+            raise InvalidParameterError(
+                "O caminho de saída deve ser uma string ou None."
+            )
+
         # === Verificar Cores (Corrigida com conversão para RGB) ===
         # Converter a imagem para RGB para garantir 3 canais
-        img = img.convert("RGB")
+        img = self._ensure_image_has_data(img).convert("RGB")
         arr: np.ndarray = np.array(img)
+        if arr.size == 0:
+            raise ProcessingError("A imagem não contém dados para processamento.")
+
         height, width, _ = arr.shape
         cor_contagem: Dict[str, int] = {}
 
@@ -284,18 +359,22 @@ class PixelArtProcessor:
                 cor_contagem[hex_cor] = cor_contagem.get(hex_cor, 0) + 1
 
         # Resumo final, ordenado por contagem decrescente
-        linhas_resumo = ["\nResumo de cores na imagem:"]
+        linhas_resumo = ["Resumo de cores na imagem:"]
         for hex_cor, contagem in sorted(
             cor_contagem.items(),
             key=lambda item: item[1],
             reverse=True,
         ):
             linha = f"{hex_cor} se repetiu {contagem} vezes"
-            print(linha)
             linhas_resumo.append(linha)
 
         if output_path:
-            with open(output_path, "w", encoding="utf-8") as arquivo:
-                arquivo.write("\n".join(linhas_resumo))
+            try:
+                with open(output_path, "w", encoding="utf-8") as arquivo:
+                    arquivo.write("\n".join(linhas_resumo))
+            except OSError as exc:  # pragma: no cover - dependente do sistema
+                raise ProcessingError(
+                    f"Não foi possível salvar o resumo em '{output_path}': {exc}"
+                ) from exc
 
-        return None
+        return linhas_resumo

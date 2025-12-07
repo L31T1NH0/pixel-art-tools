@@ -6,6 +6,7 @@ from typing import Callable
 
 from PIL import Image
 
+from errors import PixelArtError
 from processing import PixelArtProcessor
 
 
@@ -82,30 +83,39 @@ def executar_interativo() -> None:
     if fator_int is None:
         return
 
-    if opcao == "1":
-        print("Pixelizando a imagem...")
-        destino = gerar_caminho_saida(arquivo_entrada, "pixelizado")
-        processor.pixelizar(img, fator_int, destino)
-        print(f"Imagem pixelizada salva como '{destino}'")
-    elif opcao == "2":
-        print("Reduzindo a imagem...")
-        destino = gerar_caminho_saida(arquivo_entrada, "reduzida")
-        processor.reduzir(img, fator_int, destino)
-        print(f"Imagem reduzida salva como '{destino}'")
-    elif opcao == "3":
-        print("Ampliando a imagem...")
-        destino = gerar_caminho_saida(arquivo_entrada, "ampliada")
-        processor.ampliar(img, fator_int, destino)
-        print(f"Imagem ampliada salva como '{destino}'")
-    elif opcao == "4":
-        print("Aproximando cores da imagem...")
-        destino = gerar_caminho_saida(arquivo_entrada, "cores_aproximadas")
-        processor.aproximar_cores(img, output_path=destino)
-        print(f"Imagem com cores aproximadas salva como '{destino}'")
-    elif opcao == "5":
-        print("Verificando cores da imagem...")
-        destino = gerar_caminho_saida(arquivo_entrada, "cores", extensao=".txt")
-        processor.verificar_cores(img, destino)
+    try:
+        if opcao == "1":
+            print("Pixelizando a imagem...")
+            destino = gerar_caminho_saida(arquivo_entrada, "pixelizado")
+            processor.pixelizar(img, fator_int, destino)
+            print(f"Imagem pixelizada salva como '{destino}'")
+        elif opcao == "2":
+            print("Reduzindo a imagem...")
+            destino = gerar_caminho_saida(arquivo_entrada, "reduzida")
+            processor.reduzir(img, fator_int, destino)
+            print(f"Imagem reduzida salva como '{destino}'")
+        elif opcao == "3":
+            print("Ampliando a imagem...")
+            destino = gerar_caminho_saida(arquivo_entrada, "ampliada")
+            processor.ampliar(img, fator_int, destino)
+            print(f"Imagem ampliada salva como '{destino}'")
+        elif opcao == "4":
+            print("Aproximando cores da imagem...")
+            destino = gerar_caminho_saida(arquivo_entrada, "cores_aproximadas")
+            processor.aproximar_cores(img, output_path=destino)
+            print(f"Imagem com cores aproximadas salva como '{destino}'")
+        elif opcao == "5":
+            print("Verificando cores da imagem...")
+            destino = gerar_caminho_saida(
+                arquivo_entrada, "cores", extensao=".txt"
+            )
+            resumo = processor.verificar_cores(img, destino)
+            for linha in resumo:
+                print(linha)
+            if destino:
+                print(f"Resumo de cores salvo em '{destino}'")
+    except PixelArtError as exc:
+        print(f"Erro durante o processamento: {exc}")
 
 
 def carregar_imagem(caminho: str) -> Image.Image | None:
@@ -138,7 +148,12 @@ def processar_pixelizar(args: argparse.Namespace) -> None:
 
     output = args.output or gerar_caminho_saida(args.input, "pixelizado")
 
-    processor.pixelizar(imagem, args.factor, output)
+    try:
+        processor.pixelizar(imagem, args.factor, output)
+    except PixelArtError as exc:
+        print(f"Erro ao pixelizar: {exc}")
+        return
+
     print(f"Imagem pixelizada salva como '{output}'")
 
 
@@ -150,7 +165,12 @@ def processar_reduzir(args: argparse.Namespace) -> None:
 
     output = args.output or gerar_caminho_saida(args.input, "reduzida")
 
-    processor.reduzir(imagem, args.factor, output)
+    try:
+        processor.reduzir(imagem, args.factor, output)
+    except PixelArtError as exc:
+        print(f"Erro ao reduzir: {exc}")
+        return
+
     print(f"Imagem reduzida salva como '{output}'")
 
 
@@ -162,7 +182,12 @@ def processar_ampliar(args: argparse.Namespace) -> None:
 
     output = args.output or gerar_caminho_saida(args.input, "ampliada")
 
-    processor.ampliar(imagem, args.factor, output)
+    try:
+        processor.ampliar(imagem, args.factor, output)
+    except PixelArtError as exc:
+        print(f"Erro ao ampliar: {exc}")
+        return
+
     print(f"Imagem ampliada salva como '{output}'")
 
 
@@ -175,7 +200,12 @@ def processar_aproximar(args: argparse.Namespace) -> None:
     tolerancia = args.factor if args.factor is not None else 5
     output = args.output or gerar_caminho_saida(args.input, "cores_aproximadas")
 
-    processor.aproximar_cores(imagem, tolerancia=tolerancia, output_path=output)
+    try:
+        processor.aproximar_cores(imagem, tolerancia=tolerancia, output_path=output)
+    except PixelArtError as exc:
+        print(f"Erro ao aproximar cores: {exc}")
+        return
+
     print(f"Imagem com cores aproximadas salva como '{output}'")
 
 
@@ -187,7 +217,14 @@ def processar_verificar(args: argparse.Namespace) -> None:
 
     output = args.output or gerar_caminho_saida(args.input, "cores", extensao=".txt")
 
-    processor.verificar_cores(imagem, output)
+    try:
+        resumo = processor.verificar_cores(imagem, output)
+    except PixelArtError as exc:
+        print(f"Erro ao verificar cores: {exc}")
+        return
+
+    for linha in resumo:
+        print(linha)
     if output:
         print(f"Resumo de cores salvo em '{output}'")
 
