@@ -5,6 +5,22 @@ import numpy as np
 
 
 def detectar_tamanho(bw: np.ndarray, axis: int) -> int:
+    """Calcula o tamanho médio de blocos consecutivos de pixels iguais.
+
+    Percorre o array de imagem, trocando o eixo analisado para avaliar linhas
+    ou colunas conforme `axis`, e mede sequências de pixels idênticos. A média
+    dessas sequências é arredondada para obter o tamanho característico de
+    blocos homogêneos.
+
+    Args:
+        bw: Array NumPy representando a imagem, com dimensões (H, W, C).
+        axis: Eixo a ser analisado, 0 para linhas (altura) ou 1 para colunas
+            (largura).
+
+    Returns:
+        Tamanho médio inteiro das sequências de pixels iguais ao longo do
+        eixo fornecido.
+    """
     sizes: List[int] = []
     for line in np.swapaxes(bw, 0, axis):
         count: int = 0
@@ -23,6 +39,21 @@ def detectar_tamanho(bw: np.ndarray, axis: int) -> int:
 
 
 def pixelizar(img: Image.Image, fator_reducao: int) -> Image.Image:
+    """Corrige blocos de pixel art e aplica redução seguida de reamostragem.
+
+    Detecta o tamanho médio dos blocos na imagem para calcular uma nova escala
+    proporcional, aplica uma correção para alinhar os blocos, reduz a imagem
+    pelo fator informado e, em seguida, reamplia para restaurar o tamanho,
+    preservando o efeito pixelado.
+
+    Args:
+        img: Imagem PIL a ser processada.
+        fator_reducao: Fator inteiro usado para reduzir temporariamente a
+            imagem antes de reamostrar.
+
+    Returns:
+        Nova imagem PIL com blocos corrigidos e efeito pixelizado.
+    """
     # === Pixelizar (Código 1) ===
     arr: np.ndarray = np.array(img)
     bw: np.ndarray = np.all(arr == arr[0, 0], axis=-1) == False
@@ -43,6 +74,19 @@ def pixelizar(img: Image.Image, fator_reducao: int) -> Image.Image:
 
 
 def reduzir(img: Image.Image, fator_reducao: int) -> Image.Image:
+    """Reduz uma imagem mantendo a estética pixelada.
+
+    Converte a imagem para array, estima o tamanho dos blocos e ajusta as
+    dimensões preservando o modo `NEAREST`. Em seguida, reduz pelas proporções
+    fornecidas e salva o resultado.
+
+    Args:
+        img: Imagem PIL original.
+        fator_reducao: Fator inteiro de redução aplicado à largura e altura.
+
+    Returns:
+        Imagem PIL reduzida com reamostragem por vizinho mais próximo.
+    """
     # === Reduzir (Código 2) ===
     arr: np.ndarray = np.array(img)
     bw: np.ndarray = np.all(arr == arr[0, 0], axis=-1) == False
@@ -60,6 +104,19 @@ def reduzir(img: Image.Image, fator_reducao: int) -> Image.Image:
 
 
 def ampliar(img: Image.Image, fator_aumento: int) -> Image.Image:
+    """Amplia uma imagem de pixel art sem suavizar os blocos.
+
+    Calcula dimensões ampliadas com base no fator fornecido, reamostra usando
+    `NEAREST` para preservar bordas e salva o arquivo resultante.
+
+    Args:
+        img: Imagem PIL a ser ampliada.
+        fator_aumento: Fator inteiro pelo qual largura e altura serão
+            multiplicadas.
+
+    Returns:
+        Imagem PIL ampliada mantendo o estilo pixelado.
+    """
     # === Ampliar (Código 3) ===
     arr: np.ndarray = np.array(img)
     bw: np.ndarray = np.all(arr == arr[0, 0], axis=-1) == False
@@ -82,6 +139,24 @@ def aproximar_cores(
     tolerancia: int = 5,
     limiar_discrepancia: float = 0.75,
 ) -> Image.Image:
+    """Substitui cores discrepantes por cores de referência baseadas na vizinhança.
+
+    Analisa cada pixel que não esteja dentro da tolerância das cores de
+    referência. Para esses casos, calcula a cor média dos vizinhos imediatos e
+    escolhe a cor de referência mais próxima, gerando uma imagem com paleta
+    mais consistente.
+
+    Args:
+        img: Imagem PIL de entrada.
+        cores_referencia: Lista de cores RGB usadas como alvo de aproximação.
+        tolerancia: Desvio máximo permitido para considerar um pixel próximo
+            das cores de referência.
+        limiar_discrepancia: Parâmetro não utilizado diretamente, mantido por
+            compatibilidade.
+
+    Returns:
+        Imagem PIL com cores aproximadas às referências fornecidas.
+    """
     # === Aproximar Cores (Melhorada) ===
     arr: np.ndarray = np.array(img)
     height, width, _ = arr.shape
@@ -91,6 +166,7 @@ def aproximar_cores(
 
     # Função para calcular distância euclidiana entre duas cores RGB
     def distancia_cor(cor1: Tuple[int, int, int], cor2: Tuple[int, int, int]) -> float:
+        """Calcula a distância euclidiana entre duas cores RGB."""
         return float(np.sqrt(sum((c1 - c2) ** 2 for c1, c2 in zip(cor1, cor2))))
 
     # Processar cada pixel
@@ -128,6 +204,17 @@ def aproximar_cores(
 
 
 def verificar_cores(img: Image.Image) -> None:
+    """Conta e exibe a ocorrência de cada cor em uma imagem.
+
+    Converte a imagem para RGB, contabiliza cada pixel transformando-o em
+    hexadecimal e imprime um resumo ordenado por frequência.
+
+    Args:
+        img: Imagem PIL a ser analisada.
+
+    Returns:
+        None: Apenas exibe as informações no console.
+    """
     # === Verificar Cores (Corrigida com conversão para RGB) ===
     # Converter a imagem para RGB para garantir 3 canais
     img = img.convert("RGB")
@@ -137,6 +224,7 @@ def verificar_cores(img: Image.Image) -> None:
 
     # Função para converter RGB para hexadecimal
     def rgb_to_hex(rgb: Tuple[int, int, int]) -> str:
+        """Converte um valor RGB para sua representação hexadecimal."""
         return f'#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}'.upper()
 
     # Contar cada pixel individualmente
@@ -154,6 +242,16 @@ def verificar_cores(img: Image.Image) -> None:
 
 
 def main() -> None:
+    """Interface de linha de comando para ferramentas de pixel art.
+
+    Solicita ao usuário a operação desejada, valida entradas, abre a imagem e
+    aciona a função correspondente para pixelizar, reduzir, ampliar, aproximar
+    cores ou verificar paleta.
+
+    Returns:
+        None: O fluxo é conduzido por efeitos colaterais (arquivos salvos ou
+        saídas no console).
+    """
     print("Escolha uma opção:")
     print("1 - Pixelizar (corrigir blocos e limpar imagem)")
     print("2 - Reduzir (diminuir tamanho da imagem)")
