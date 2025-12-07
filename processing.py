@@ -1,5 +1,6 @@
 """Funções de processamento para ferramentas de pixel art."""
 
+from pathlib import Path
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -39,12 +40,14 @@ class PixelArtProcessor:
         return img
 
     @staticmethod
-    def _save_image(image: Image.Image, output_path: str) -> None:
+    def _save_image(image: Image.Image, output_path: str | Path) -> None:
+        destino = Path(output_path)
         try:
-            image.save(output_path)
+            destino.parent.mkdir(parents=True, exist_ok=True)
+            image.save(destino)
         except OSError as exc:  # pragma: no cover - dependente do sistema de arquivos
             raise ProcessingError(
-                f"Não foi possível salvar a imagem em '{output_path}': {exc}"
+                f"Não foi possível salvar a imagem em '{destino}': {exc}"
             ) from exc
 
     def calcular_blocos(self, img: Image.Image) -> Tuple[int, int, int]:
@@ -108,7 +111,7 @@ class PixelArtProcessor:
         self,
         img: Image.Image,
         fator_reducao: int,
-        output_path: str = "pixel_art_corrigida.png",
+        output_path: str | Path = "pixel_art_corrigida.png",
     ) -> Image.Image:
         """Corrige blocos de pixel art e aplica redução seguida de reamostragem.
 
@@ -154,7 +157,7 @@ class PixelArtProcessor:
         self,
         img: Image.Image,
         fator_reducao: int,
-        output_path: str = "pixel_art_reduzida.png",
+        output_path: str | Path = "pixel_art_reduzida.png",
     ) -> Image.Image:
         """Reduz uma imagem mantendo a estética pixelada.
 
@@ -193,7 +196,7 @@ class PixelArtProcessor:
         self,
         img: Image.Image,
         fator_aumento: int,
-        output_path: str = "pixel_art_ampliada.png",
+        output_path: str | Path = "pixel_art_ampliada.png",
     ) -> Image.Image:
         """Amplia uma imagem de pixel art sem suavizar os blocos.
 
@@ -234,7 +237,7 @@ class PixelArtProcessor:
         cores_referencia: List[Tuple[int, int, int]] | None = None,
         tolerancia: int = 5,
         limiar_discrepancia: float = 0.75,
-        output_path: str = "pixel_art_cores_aproximadas.png",
+        output_path: str | Path = "pixel_art_cores_aproximadas.png",
     ) -> Image.Image:
         """Aproxima cores discrepantes usando vizinhança como referência.
 
@@ -326,7 +329,7 @@ class PixelArtProcessor:
         return img_final
 
     def verificar_cores(
-        self, img: Image.Image, output_path: str | None = None
+        self, img: Image.Image, output_path: str | Path | None = None
     ) -> List[str]:
         """Conta e exibe a ocorrência de cada cor em uma imagem.
 
@@ -339,9 +342,9 @@ class PixelArtProcessor:
         Returns:
             List[str]: Resumo textual com a contagem de cores.
         """
-        if output_path is not None and not isinstance(output_path, str):
+        if output_path is not None and not isinstance(output_path, (str, Path)):
             raise InvalidParameterError(
-                "O caminho de saída deve ser uma string ou None."
+                "O caminho de saída deve ser uma string, um Path ou None."
             )
 
         # === Verificar Cores (Corrigida com conversão para RGB) ===
@@ -377,12 +380,14 @@ class PixelArtProcessor:
             linhas_resumo.append(linha)
 
         if output_path:
+            destino = Path(output_path)
             try:
-                with open(output_path, "w", encoding="utf-8") as arquivo:
+                destino.parent.mkdir(parents=True, exist_ok=True)
+                with destino.open("w", encoding="utf-8") as arquivo:
                     arquivo.write("\n".join(linhas_resumo))
             except OSError as exc:  # pragma: no cover - dependente do sistema
                 raise ProcessingError(
-                    f"Não foi possível salvar o resumo em '{output_path}': {exc}"
+                    f"Não foi possível salvar o resumo em '{destino}': {exc}"
                 ) from exc
 
         return linhas_resumo
