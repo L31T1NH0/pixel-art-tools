@@ -56,7 +56,12 @@ class PixelArtProcessor:
 
         return int(round(np.mean(tamanhos)))
 
-    def pixelizar(self, img: Image.Image, fator_reducao: int) -> Image.Image:
+    def pixelizar(
+        self,
+        img: Image.Image,
+        fator_reducao: int,
+        output_path: str = "pixel_art_corrigida.png",
+    ) -> Image.Image:
         """Corrige blocos de pixel art e aplica redução seguida de reamostragem.
 
         Detecta o tamanho médio dos blocos na imagem para calcular uma nova escala
@@ -91,11 +96,16 @@ class PixelArtProcessor:
             Image.NEAREST,
         )
         final: Image.Image = reduzida.resize(corrigida.size, Image.NEAREST)
-        final.save("pixel_art_corrigida.png")
+        final.save(output_path)
 
         return final
 
-    def reduzir(self, img: Image.Image, fator_reducao: int) -> Image.Image:
+    def reduzir(
+        self,
+        img: Image.Image,
+        fator_reducao: int,
+        output_path: str = "pixel_art_reduzida.png",
+    ) -> Image.Image:
         """Reduz uma imagem mantendo a estética pixelada.
 
         Converte a imagem para array, estima o tamanho dos blocos e ajusta as
@@ -122,11 +132,16 @@ class PixelArtProcessor:
             (largura_reduzida, altura_reduzida),
             Image.NEAREST,
         )
-        reduzida.save("pixel_art_reduzida.png")
+        reduzida.save(output_path)
 
         return reduzida
 
-    def ampliar(self, img: Image.Image, fator_aumento: int) -> Image.Image:
+    def ampliar(
+        self,
+        img: Image.Image,
+        fator_aumento: int,
+        output_path: str = "pixel_art_ampliada.png",
+    ) -> Image.Image:
         """Amplia uma imagem de pixel art sem suavizar os blocos.
 
         Calcula dimensões ampliadas com base no fator fornecido, reamostra usando
@@ -153,7 +168,7 @@ class PixelArtProcessor:
             (largura_ampliada, altura_ampliada),
             Image.NEAREST,
         )
-        ampliada.save("pixel_art_ampliada.png")
+        ampliada.save(output_path)
 
         return ampliada
 
@@ -163,6 +178,7 @@ class PixelArtProcessor:
         cores_referencia: List[Tuple[int, int, int]] | None = None,
         tolerancia: int = 5,
         limiar_discrepancia: float = 0.75,
+        output_path: str = "pixel_art_cores_aproximadas.png",
     ) -> Image.Image:
         """Aproxima cores discrepantes usando vizinhança como referência.
 
@@ -233,10 +249,10 @@ class PixelArtProcessor:
 
         # Converter de volta para imagem e salvar
         img_final: Image.Image = Image.fromarray(arr_novo)
-        img_final.save("pixel_art_cores_aproximadas.png")
+        img_final.save(output_path)
         return img_final
 
-    def verificar_cores(self, img: Image.Image) -> None:
+    def verificar_cores(self, img: Image.Image, output_path: str | None = None) -> None:
         """Conta e exibe a ocorrência de cada cor em uma imagem.
 
         Converte a imagem para RGB, contabiliza cada pixel transformando-o em
@@ -268,12 +284,18 @@ class PixelArtProcessor:
                 cor_contagem[hex_cor] = cor_contagem.get(hex_cor, 0) + 1
 
         # Resumo final, ordenado por contagem decrescente
-        print("\nResumo de cores na imagem:")
+        linhas_resumo = ["\nResumo de cores na imagem:"]
         for hex_cor, contagem in sorted(
             cor_contagem.items(),
             key=lambda item: item[1],
             reverse=True,
         ):
-            print(f"{hex_cor} se repetiu {contagem} vezes")
+            linha = f"{hex_cor} se repetiu {contagem} vezes"
+            print(linha)
+            linhas_resumo.append(linha)
+
+        if output_path:
+            with open(output_path, "w", encoding="utf-8") as arquivo:
+                arquivo.write("\n".join(linhas_resumo))
 
         return None
