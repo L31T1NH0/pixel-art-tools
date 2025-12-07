@@ -2,7 +2,7 @@
 
 from PIL import Image
 
-from processing import ampliar, aproximar_cores, pixelizar, reduzir, verificar_cores
+from processing import PixelArtProcessor
 
 
 def obter_fator(opcao: str) -> int | None:
@@ -39,6 +39,8 @@ def main() -> None:
         None: O fluxo é conduzido por efeitos colaterais (arquivos salvos ou
         saídas no console).
     """
+    processor = PixelArtProcessor()
+
     print("Escolha uma opção:")
     print("1 - Pixelizar (corrigir blocos e limpar imagem)")
     print("2 - Reduzir (diminuir tamanho da imagem)")
@@ -70,26 +72,26 @@ def main() -> None:
 
     if opcao == "1":
         print("Pixelizando a imagem...")
-        pixelizar(img, fator_int)
+        processor.pixelizar(img, fator_int)
         print("Imagem pixelizada salva como 'pixel_art_corrigida.png'")
     elif opcao == "2":
         print("Reduzindo a imagem...")
-        reduzir(img, fator_int)
+        processor.reduzir(img, fator_int)
         print("Imagem reduzida salva como 'pixel_art_reduzida.png'")
     elif opcao == "3":
         print("Ampliando a imagem...")
-        ampliar(img, fator_int)
+        processor.ampliar(img, fator_int)
         print("Imagem ampliada salva como 'pixel_art_ampliada.png'")
     elif opcao == "4":
         print("Aproximando cores da imagem...")
-        aproximar_cores(img)
+        processor.aproximar_cores(img)
         print(
             "Imagem com cores aproximadas salva como "
             "'pixel_art_cores_aproximadas.png'"
         )
     elif opcao == "5":
         print("Verificando cores da imagem...")
-        verificar_cores(img)
+        processor.verificar_cores(img)
 
 
 if __name__ == "__main__":
