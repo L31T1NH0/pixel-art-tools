@@ -6,7 +6,6 @@ import numpy as np
 from PIL import Image
 
 from errors import InvalidParameterError, ProcessingError
-from utils import cor_referencia_mais_proxima, obter_vizinhos, pixel_fora_da_tolerancia
 
 
 class PixelArtProcessor:
@@ -271,49 +270,58 @@ class PixelArtProcessor:
         )
 
         # === Aproximar Cores (Melhorada) ===
-        arr: np.ndarray = np.array(img)
-        height, width, _ = arr.shape
+        arr: np.ndarray = np.array(img, dtype=np.uint8)
+        if arr.size == 0:
+            raise ProcessingError("A imagem não contém dados para processamento.")
 
-        # Criar uma cópia do array para modificação
-        arr_novo: np.ndarray = arr.copy()
+        cores_ref_array: np.ndarray = np.asarray(cores_referencia, dtype=np.int16)
+        arr_int: np.ndarray = arr.astype(np.int16, copy=False)
 
-        # Processar cada pixel
-        for y in range(height):
-            for x in range(width):
-                pixel_atual: Tuple[int, int, int] = tuple(arr[y, x])
-                pixel_toleravel = pixel_fora_da_tolerancia(
-                    pixel_atual,
-                    cores_referencia,
-                    tolerancia,
-                )
-                if not pixel_toleravel:
-                    continue
+        # Máscara de pixels fora da tolerância em relação às cores de referência
+        diff_ref = np.abs(arr_int[..., None, :] - cores_ref_array[None, None, :, :])
+        dentro_tolerancia = np.all(diff_ref <= tolerancia, axis=3)
+        fora_tolerancia = ~np.any(dentro_tolerancia, axis=2)
 
-                vizinhos: List[Tuple[int, int, int]] = obter_vizinhos(arr, x, y)
-                if not vizinhos:
-                    continue
+        altura, largura, _ = arr.shape
+        arr_pad = np.pad(arr_int, ((1, 1), (1, 1), (0, 0)), mode="edge")
+        mask_pad = np.pad(np.ones((altura, largura), dtype=np.int16), 1, mode="constant")
 
-                vizinhos_rgb: np.ndarray = np.array(vizinhos)
-                cor_media: Tuple[int, int, int] = tuple(
-                    np.round(np.mean(vizinhos_rgb, axis=0)).astype(int)
-                )
+        vizinhos_soma = (
+            arr_pad[:-2, :-2] * mask_pad[:-2, :-2, None]
+            + arr_pad[:-2, 1:-1] * mask_pad[:-2, 1:-1, None]
+            + arr_pad[:-2, 2:] * mask_pad[:-2, 2:, None]
+            + arr_pad[1:-1, :-2] * mask_pad[1:-1, :-2, None]
+            + arr_pad[1:-1, 2:] * mask_pad[1:-1, 2:, None]
+            + arr_pad[2:, :-2] * mask_pad[2:, :-2, None]
+            + arr_pad[2:, 1:-1] * mask_pad[2:, 1:-1, None]
+            + arr_pad[2:, 2:] * mask_pad[2:, 2:, None]
+        )
+        contagem_vizinhos = (
+            mask_pad[:-2, :-2]
+            + mask_pad[:-2, 1:-1]
+            + mask_pad[:-2, 2:]
+            + mask_pad[1:-1, :-2]
+            + mask_pad[1:-1, 2:]
+            + mask_pad[2:, :-2]
+            + mask_pad[2:, 1:-1]
+            + mask_pad[2:, 2:]
+        )
 
-                discrepancia_quadrada = sum(
-                    (valor_atual - valor_medio) ** 2
-                    for valor_atual, valor_medio in zip(pixel_atual, cor_media)
-                )
-                discrepancia: float = float(np.sqrt(discrepancia_quadrada))
-                if discrepancia < limiar_discrepancia:
-                    continue
+        cor_media = np.rint(vizinhos_soma / contagem_vizinhos[..., None]).astype(np.int16)
 
-                cor_referencia: Tuple[int, int, int] = cor_referencia_mais_proxima(
-                    cor_media,
-                    cores_referencia,
-                )
-                arr_novo[y, x] = cor_referencia
+        discrepancia = np.sqrt(np.sum((arr_int - cor_media) ** 2, axis=2))
+        mascara_discrepante = discrepancia >= limiar_discrepancia
 
-        # Converter de volta para imagem e salvar
-        img_final: Image.Image = Image.fromarray(arr_novo)
+        distancias = np.sum((cor_media[..., None, :] - cores_ref_array[None, None, :, :]) ** 2, axis=3)
+        indices_cor = np.argmin(distancias, axis=2)
+
+        arr_novo = arr.copy()
+        mascara_final = fora_tolerancia & mascara_discrepante
+        if np.any(mascara_final):
+            coords_y, coords_x = np.nonzero(mascara_final)
+            arr_novo[coords_y, coords_x] = cores_ref_array[indices_cor[coords_y, coords_x]]
+
+        img_final: Image.Image = Image.fromarray(arr_novo.astype(np.uint8))
         self._save_image(img_final, output_path)
         return img_final
 
