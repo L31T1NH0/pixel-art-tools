@@ -1,16 +1,20 @@
+"""Ferramentas para manipulação simples de pixel art."""
+
 from typing import Dict, List, Tuple
 
-from PIL import Image
 import numpy as np
+from PIL import Image
 
 
 def calcular_blocos(img: Image.Image) -> Tuple[int, int, int]:
     """Retorna a largura, altura e tamanho médio dos blocos de pixel art."""
+
     arr: np.ndarray = np.array(img)
-    bloco_larg: int = detectar_tamanho(arr, 1)
-    bloco_alt: int = detectar_tamanho(arr, 0)
-    bloco_tam: int = int(round((bloco_larg + bloco_alt) / 2))
-    return bloco_larg, bloco_alt, bloco_tam
+    bloco_largura: int = detectar_tamanho(arr, 1)
+    bloco_altura: int = detectar_tamanho(arr, 0)
+    bloco_tamanho: int = int(round((bloco_largura + bloco_altura) / 2))
+
+    return bloco_largura, bloco_altura, bloco_tamanho
 
 
 def detectar_tamanho(bw: np.ndarray, axis: int) -> int:
@@ -30,21 +34,22 @@ def detectar_tamanho(bw: np.ndarray, axis: int) -> int:
         Tamanho médio inteiro das sequências de pixels iguais ao longo do
         eixo fornecido.
     """
-    sizes: List[int] = []
-    for line in np.swapaxes(bw, 0, axis):
-        count: int = 0
-        last = line[0]
-        for pixel in line:
-            if np.any(pixel != last):
-                if count > 0:
-                    sizes.append(count)
-                count = 1
-                last = pixel
+    tamanhos: List[int] = []
+    for linha in np.swapaxes(bw, 0, axis):
+        contagem = 0
+        ultimo_pixel = linha[0]
+        for pixel in linha:
+            if np.any(pixel != ultimo_pixel):
+                if contagem > 0:
+                    tamanhos.append(contagem)
+                contagem = 1
+                ultimo_pixel = pixel
             else:
-                count += 1
-        if count > 0:
-            sizes.append(count)
-    return int(round(np.mean(sizes)))
+                contagem += 1
+        if contagem > 0:
+            tamanhos.append(contagem)
+
+    return int(round(np.mean(tamanhos)))
 
 
 def pixelizar(img: Image.Image, fator_reducao: int) -> Image.Image:
@@ -64,17 +69,26 @@ def pixelizar(img: Image.Image, fator_reducao: int) -> Image.Image:
         Nova imagem PIL com blocos corrigidos e efeito pixelizado.
     """
     # === Pixelizar (Código 1) ===
-    bloco_larg, bloco_alt, bloco_tam = calcular_blocos(img)
-    print(f"Tamanho médio detectado: {bloco_larg}x{bloco_alt}")
-    nova_larg: int = int(round(img.width / bloco_larg * bloco_tam))
-    nova_alt: int = int(round(img.height / bloco_alt * bloco_tam))
-    corrigida: Image.Image = img.resize((nova_larg, nova_alt), Image.NEAREST)
+    bloco_largura, bloco_altura, bloco_tamanho = calcular_blocos(img)
+    print(f"Tamanho médio detectado: {bloco_largura}x{bloco_altura}")
+
+    nova_largura: int = int(round(img.width / bloco_largura * bloco_tamanho))
+    nova_altura: int = int(round(img.height / bloco_altura * bloco_tamanho))
+
+    corrigida: Image.Image = img.resize(
+        (nova_largura, nova_altura),
+        Image.NEAREST,
+    )
     reduzida: Image.Image = corrigida.resize(
-        (corrigida.width // fator_reducao, corrigida.height // fator_reducao),
-        Image.NEAREST
+        (
+            corrigida.width // fator_reducao,
+            corrigida.height // fator_reducao,
+        ),
+        Image.NEAREST,
     )
     final: Image.Image = reduzida.resize(corrigida.size, Image.NEAREST)
     final.save("pixel_art_corrigida.png")
+
     return final
 
 
@@ -93,13 +107,20 @@ def reduzir(img: Image.Image, fator_reducao: int) -> Image.Image:
         Imagem PIL reduzida com reamostragem por vizinho mais próximo.
     """
     # === Reduzir (Código 2) ===
-    nova_larg: int = img.width
-    nova_alt: int = img.height
-    corrigida: Image.Image = img.resize((nova_larg, nova_alt), Image.NEAREST)
-    larg_reduzida: int = img.width // fator_reducao
-    alt_reduzida: int = img.height // fator_reducao
-    reduzida: Image.Image = corrigida.resize((larg_reduzida, alt_reduzida), Image.NEAREST)
+    nova_largura: int = img.width
+    nova_altura: int = img.height
+    corrigida: Image.Image = img.resize(
+        (nova_largura, nova_altura),
+        Image.NEAREST,
+    )
+    largura_reduzida: int = img.width // fator_reducao
+    altura_reduzida: int = img.height // fator_reducao
+    reduzida: Image.Image = corrigida.resize(
+        (largura_reduzida, altura_reduzida),
+        Image.NEAREST,
+    )
     reduzida.save("pixel_art_reduzida.png")
+
     return reduzida
 
 
@@ -118,13 +139,20 @@ def ampliar(img: Image.Image, fator_aumento: int) -> Image.Image:
         Imagem PIL ampliada mantendo o estilo pixelado.
     """
     # === Ampliar (Código 3) ===
-    nova_larg: int = img.width
-    nova_alt: int = img.height
-    corrigida: Image.Image = img.resize((nova_larg, nova_alt), Image.NEAREST)
-    larg_ampliada: int = img.width * fator_aumento
-    alt_ampliada: int = img.height * fator_aumento
-    ampliada: Image.Image = corrigida.resize((larg_ampliada, alt_ampliada), Image.NEAREST)
+    nova_largura: int = img.width
+    nova_altura: int = img.height
+    corrigida: Image.Image = img.resize(
+        (nova_largura, nova_altura),
+        Image.NEAREST,
+    )
+    largura_ampliada: int = img.width * fator_aumento
+    altura_ampliada: int = img.height * fator_aumento
+    ampliada: Image.Image = corrigida.resize(
+        (largura_ampliada, altura_ampliada),
+        Image.NEAREST,
+    )
     ampliada.save("pixel_art_ampliada.png")
+
     return ampliada
 
 
@@ -141,18 +169,24 @@ def pixel_fora_da_tolerancia(
     )
 
 
-def obter_vizinhos(arr: np.ndarray, x: int, y: int) -> List[Tuple[int, int, int]]:
+def obter_vizinhos(
+    arr: np.ndarray,
+    x: int,
+    y: int,
+) -> List[Tuple[int, int, int]]:
     """Retorna a vizinhança 8 de um pixel em formato de lista RGB."""
 
-    height, width, _ = arr.shape
+    altura, largura, _ = arr.shape
     vizinhos: List[Tuple[int, int, int]] = []
-    for dy in [-1, 0, 1]:
-        for dx in [-1, 0, 1]:
-            if dy == 0 and dx == 0:
+    for delta_y in [-1, 0, 1]:
+        for delta_x in [-1, 0, 1]:
+            if delta_y == 0 and delta_x == 0:
                 continue
-            ny, nx = y + dy, x + dx
-            if 0 <= ny < height and 0 <= nx < width:
-                vizinhos.append(tuple(arr[ny, nx]))
+
+            novo_y, novo_x = y + delta_y, x + delta_x
+            if 0 <= novo_y < altura and 0 <= novo_x < largura:
+                vizinhos.append(tuple(arr[novo_y, novo_x]))
+
     return vizinhos
 
 
@@ -162,20 +196,31 @@ def cor_referencia_mais_proxima(
 ) -> Tuple[int, int, int]:
     """Escolhe a cor de referência mais próxima da cor base."""
 
-    def distancia_cor(cor1: Tuple[int, int, int], cor2: Tuple[int, int, int]) -> float:
-        return float(np.sqrt(sum((c1 - c2) ** 2 for c1, c2 in zip(cor1, cor2))))
+    def distancia_cor(
+        cor1: Tuple[int, int, int],
+        cor2: Tuple[int, int, int],
+    ) -> float:
+        diferenca_quadrada = sum(
+            (cor1_valor - cor2_valor) ** 2
+            for cor1_valor, cor2_valor in zip(cor1, cor2)
+        )
+        return float(np.sqrt(diferenca_quadrada))
 
-    distancias: List[float] = [distancia_cor(cor_base, ref) for ref in cores_referencia]
-    return cores_referencia[int(np.argmin(distancias))]
+    distancias: List[float] = [
+        distancia_cor(cor_base, referencia) for referencia in cores_referencia
+    ]
+    indice_menor_distancia = int(np.argmin(distancias))
+
+    return cores_referencia[indice_menor_distancia]
 
 
 def aproximar_cores(
     img: Image.Image,
-    cores_referencia: List[Tuple[int, int, int]] = [(0, 0, 0), (255, 255, 255)],
+    cores_referencia: List[Tuple[int, int, int]] | None = None,
     tolerancia: int = 5,
     limiar_discrepancia: float = 0.75,
 ) -> Image.Image:
-    """Substitui cores discrepantes por cores de referência baseadas na vizinhança.
+    """Aproxima cores discrepantes usando vizinhança como referência.
 
     Analisa cada pixel que não esteja dentro da tolerância das cores de
     referência. Para esses casos, calcula a cor média dos vizinhos imediatos e
@@ -194,6 +239,12 @@ def aproximar_cores(
     Returns:
         Imagem PIL com cores aproximadas às referências fornecidas.
     """
+    cores_referencia = (
+        cores_referencia
+        if cores_referencia is not None
+        else [(0, 0, 0), (255, 255, 255)]
+    )
+
     # === Aproximar Cores (Melhorada) ===
     arr: np.ndarray = np.array(img)
     height, width, _ = arr.shape
@@ -205,27 +256,36 @@ def aproximar_cores(
     for y in range(height):
         for x in range(width):
             pixel_atual: Tuple[int, int, int] = tuple(arr[y, x])
-            if pixel_fora_da_tolerancia(pixel_atual, cores_referencia, tolerancia):
-                vizinhos: List[Tuple[int, int, int]] = obter_vizinhos(arr, x, y)
+            pixel_toleravel = pixel_fora_da_tolerancia(
+                pixel_atual,
+                cores_referencia,
+                tolerancia,
+            )
+            if not pixel_toleravel:
+                continue
 
-                if vizinhos:
-                    vizinhos_rgb: np.ndarray = np.array(vizinhos)
-                    cor_media: Tuple[int, int, int] = tuple(
-                        np.round(np.mean(vizinhos_rgb, axis=0)).astype(int)
-                    )
+            vizinhos: List[Tuple[int, int, int]] = obter_vizinhos(arr, x, y)
+            if not vizinhos:
+                continue
 
-                    discrepancia: float = float(
-                        np.sqrt(sum((c1 - c2) ** 2 for c1, c2 in zip(pixel_atual, cor_media)))
-                    )
-                    if discrepancia < limiar_discrepancia:
-                        continue
+            vizinhos_rgb: np.ndarray = np.array(vizinhos)
+            cor_media: Tuple[int, int, int] = tuple(
+                np.round(np.mean(vizinhos_rgb, axis=0)).astype(int)
+            )
 
-                    cor_referencia: Tuple[int, int, int] = cor_referencia_mais_proxima(
-                        cor_media, cores_referencia
-                    )
+            discrepancia_quadrada = sum(
+                (valor_atual - valor_medio) ** 2
+                for valor_atual, valor_medio in zip(pixel_atual, cor_media)
+            )
+            discrepancia: float = float(np.sqrt(discrepancia_quadrada))
+            if discrepancia < limiar_discrepancia:
+                continue
 
-                    # Substituir o pixel pela cor de referência
-                    arr_novo[y, x] = cor_referencia
+            cor_referencia: Tuple[int, int, int] = cor_referencia_mais_proxima(
+                cor_media,
+                cores_referencia,
+            )
+            arr_novo[y, x] = cor_referencia
 
     # Converter de volta para imagem e salvar
     img_final: Image.Image = Image.fromarray(arr_novo)
@@ -266,8 +326,13 @@ def verificar_cores(img: Image.Image) -> None:
 
     # Resumo final, ordenado por contagem decrescente
     print("\nResumo de cores na imagem:")
-    for hex_cor, contagem in sorted(cor_contagem.items(), key=lambda x: x[1], reverse=True):
+    for hex_cor, contagem in sorted(
+        cor_contagem.items(),
+        key=lambda item: item[1],
+        reverse=True,
+    ):
         print(f"{hex_cor} se repetiu {contagem} vezes")
+
     return None
 
 
@@ -275,7 +340,9 @@ def obter_fator(opcao: str) -> int | None:
     """Solicita e valida o fator numérico usado pelas transformações."""
 
     if opcao in ["1", "2"]:
-        fator: str | None = input("Digite o fator de redução (ex.: 2 para 2x): ")
+        fator: str | None = input(
+            "Digite o fator de redução (ex.: 2 para 2x): "
+        )
     elif opcao == "3":
         fator = input("Digite o fator de aumento (ex.: 2 para 2x): ")
     else:
@@ -315,7 +382,9 @@ def main() -> None:
         print("Opção inválida! Escolha 1, 2, 3, 4 ou 5.")
         return
 
-    arquivo_entrada: str = input("Digite o nome do arquivo de imagem (ex.: imagem.png): ")
+    arquivo_entrada: str = input(
+        "Digite o nome do arquivo de imagem (ex.: imagem.png): "
+    )
 
     try:
         img: Image.Image = Image.open(arquivo_entrada)
@@ -345,7 +414,10 @@ def main() -> None:
     elif opcao == "4":
         print("Aproximando cores da imagem...")
         aproximar_cores(img)
-        print("Imagem com cores aproximadas salva como 'pixel_art_cores_aproximadas.png'")
+        print(
+            "Imagem com cores aproximadas salva como "
+            "'pixel_art_cores_aproximadas.png'"
+        )
     elif opcao == "5":
         print("Verificando cores da imagem...")
         verificar_cores(img)
